@@ -1,0 +1,30 @@
+name: Fetch data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *" # 23 -> GMT-3 => 20h
+jobs:
+  fetch:
+    name: "Fetch latest data"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Puxar o código
+      uses: actions/checkout@v3
+    - name: Rodar fetchers
+      run: |
+        for item in $(find -type f -executable -name fetch); do
+          sed_stmt="$(printf 's;^\([^$]*\);%.3d: \\1;' "$item")"
+          $item 2>&1 | sed "$sed_stmt" &
+        done
+    - name: Configurar o git ou ele não commita
+      run: |
+        git config user.name beeancount-fetcher
+        git config user.email actions-bot@users.noreply.github.com
+    - name: A parte que o Git cuida
+      run: |
+        if [ ! -z "$(git diff)" ]; then
+          git add -A && git commit -m "atualização de dados" && git push
+        else
+          echo "Nada a alterar"
+        fi
