@@ -95,7 +95,11 @@ def statusinvest(job: Job):
     return Result(job=job, entry=None)
 
 def handle_job(job: Job):
-    return fetchers[job.source](job)
+    try:
+        return fetchers[job.source](job)
+    except Exception as e:
+        logger.error(e)
+        return Result(job=job, entry=None)
 
 def get_jobs():
     for item in CURRENT_DIR.glob('*.txt'):
