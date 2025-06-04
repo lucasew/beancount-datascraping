@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+from dataclasses import dataclass
+from enum import Enum
+from datetime import date, datetime
+from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
+import re
+import json
+import logging
+from urllib.request import urlopen, Request
+import functools
+from csv import DictWriter
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+
+CURRENT_DIR=Path(__file__).parent
+TODAY = datetime.today().date()
+
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0"
+
+@functools.cache
+def fetch_body(url: str, fetch_try=0):
+    logger.debug(f"fetch: {url}")
+    res = urlopen(Request(url, headers={
+      "User-Agent": USER_AGENT,
+    }))
+    return res.read()
+
+def fetch_json(url: str):
+    return json.loads(fetch_body(url))
+
+fetchers = {}
+def fetcher(fn):
+    fetchers[fn.__name__] = fn
+    return fn
+
+@dataclass
+class AssetType(Enum):
+    ACAO = "acoes"
+    FII = "fii"
+
+    def __hash__(self):
+        return self.value.__hash__()
+
+@dataclass
+class Entry():
+    day: date
+    price: float
+
+    @property
+    def columns(self):
+        return ['day', 'price']
+
+    @property
+    def line(self):
+        return {"day": str(self.day), "price": self.price}
+
+@dataclass
+class Job():
+    ticker: str
+    type: AssetType
+    source: str
+
+    @property
+    def output_file(self):
+        ret = CURRENT_DIR / self.source / (self.ticker + ".csv")
+        ret.parent.mkdir(parents=True, exist_ok=True)
+        return ret
+
+@dataclass
+class Result():
+    entry: Optional[Entry]
+    job: Job
+
+
+@fetcher
+def none(job: Job):
+    return Result(job=job, entry=None)
+
+@fetcher
+def statusinvest(job: Job):
+    kind = {
+        AssetType.ACAO: 'acoes',
+        AssetType.FII: 'fundos-imobiliarios'
+    }[job.type]
+    url = f"https://statusinvest.com.br/{kind}/{job.ticker}"
+    content = fetch_body(url).decode('utf-8')
+    regex = r"\<div title=\"Valor atual do ativo\"\>\s*\<h3 class=\"title m-0\">Valor atual\</h3\>\s*\<span class=\"icon\"\>(R\$)\</span\>\s*\<strong class=\"value\"\>([0-9]*,[0-9]{2})\</strong\>\s*\</div\>"
+    for item in re.finditer(regex, content, re.MULTILINE):
+        value = item.group(2).replace('.', '').replace(',', '.')
+        return Result(job=job, entry=Entry(day=TODAY, price=value))
+    return Result(job=job, entry=None)
+
+def handle_job(job: Job):
+    return fetchers[job.source](job)
+
+def get_jobs():
+    for item in CURRENT_DIR.glob('*.txt'):
+        asset_type = AssetType(item.stem)
+        for ticker in item.open('r'):
+            ticker = ticker.strip()
+            if ticker == '':
+                continue
+            for f in fetchers.keys():
+                yield Job(ticker=ticker, type=asset_type, source=f)
+
+with ThreadPoolExecutor(max_workers=8) as tp:
+    for result in tp.map(handle_job, get_jobs()):
+        if result.entry is None:
+            continue
+        output_file: Path = result.job.output_file
+        if not output_file.exists():
+            with output_file.open('w') as f:
+                w = DictWriter(f, fieldnames=result.entry.columns)
+                w.writeheader()
+        with output_file.open('a') as f:
+            w = DictWriter(f, fieldnames=result.entry.columns)
+            w.writerow(result.entry.line)
+        print(result)
+
