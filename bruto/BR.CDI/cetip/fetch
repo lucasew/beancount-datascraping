@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+from shutil import which
+from pathlib import Path
+import subprocess
+from argparse import ArgumentParser
+import csv
+import os
+
+# favor não executar esse script diretamente para evitar dar carga para o serviço deles
+
+THIS_FOLDER = Path(__file__).parent
+os.chdir(THIS_FOLDER)
+
+
+parser = ArgumentParser()
+parser.add_argument('--skip-fetch', action='store_true')
+args = parser.parse_args()
+
+
+RCLONE_BIN = which("rclone")
+assert RCLONE_BIN is not None, "rclone não instalado" # TODO: baixar o binário na hora
+
+# gerado com `rclone obscure dummy`
+RCLONE_DUMMY_ENCODED_PASSWORD = "RhNsirK9BpdNF7jZBMv0eumRZhZU"
+
+rclone_args = [
+    RCLONE_BIN,
+    "copy",
+    "-P",
+    "-vvv",
+    f":ftp,host=ftp.cetip.com.br,user=anonymous,pass={RCLONE_DUMMY_ENCODED_PASSWORD}:/MediaCDI",
+    "bruto"
+]
+
+if not args.skip_fetch:
+    copy_exit_code = subprocess.run(rclone_args)
+    assert copy_exit_code != 0, "deu ruim na cópia"
+
+BRUTO_DIR = THIS_FOLDER / "bruto"
+JOINED_CSV = THIS_FOLDER / "joined.csv"
+
+with JOINED_CSV.open('w') as f:
+    w = csv.DictWriter(f, ["day", "value.year"])
+    w.writeheader()
+    items = [item.stem for item in BRUTO_DIR.iterdir()]
+    items.sort()
+    for item in items:
+        ano = item[0:4]
+        mes = item[4:6]
+        dia = item[6:8]
+        valor = int((BRUTO_DIR / f"{item}.txt").read_text().strip())
+        inteiro = valor // 100
+        decimal = valor % 100
+        w.writerow({
+            'day': f"{ano}-{mes}-{dia}",
+            'value.year': f"{inteiro}.{decimal:02}"
+        })
+
+    

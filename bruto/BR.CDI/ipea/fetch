@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+from shutil import which
+from pathlib import Path
+import subprocess
+from argparse import ArgumentParser
+import csv
+import os
+import re
+from urllib.request import urlopen
+from datetime import date, timedelta
+import calendar
+
+# favor não executar esse script diretamente para evitar dar carga para o serviço deles
+
+THIS_FOLDER = Path(__file__).parent
+os.chdir(THIS_FOLDER)
+
+JOINED_CSV = THIS_FOLDER / "joined.csv"
+
+data = urlopen("http://www.ipeadata.gov.br/ExibeSerie.aspx?stub=1&serid=32237&module=M").read().decode('utf-8')
+
+ITEM_REGEX = re.compile(r"<td class=\"dxgv\"[^>]*>([0-9]{4}\.[0-9]{2})</td><td class=\"dxgv\"[^>]*\>([0-9,]*?)</td>")
+
+with JOINED_CSV.open('w') as f:
+    w = csv.DictWriter(f, ["day", "value.month"])
+    w.writeheader()
+    for match in re.finditer(ITEM_REGEX, data):
+        date_str, rate = match.groups()
+        rate = rate.replace(',', '.')
+        year, month = date_str.split('.')
+        _, day = calendar.monthrange(int(year), int(month))
+        w.writerow({
+            'day': date(int(year), int(month), day),
+            'value.month': rate
+        })
+
+    
