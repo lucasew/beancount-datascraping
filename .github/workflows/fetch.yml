@@ -14,7 +14,7 @@ jobs:
     - name: Rodar fetchers
       run: |
         for item in $(find -type f -executable -name fetch); do
-          sed_stmt="$(printf 's;^\([^$]*\);%.3d: \\1;' "$item")"
+          sed_stmt="$(printf 's;^\([^$]*\);%s: \\1;' "$item")"
           $item 2>&1 | sed "$sed_stmt" &
         done
     - name: Configurar o git ou ele não commita
