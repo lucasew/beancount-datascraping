@@ -41,6 +41,7 @@ def fetcher(fn):
 class AssetType(Enum):
     ACAO = "acoes"
     FII = "fii"
+    ETF = "etfs"
 
     def __hash__(self):
         return self.value.__hash__()
@@ -84,7 +85,8 @@ def none(job: Job):
 def statusinvest(job: Job):
     kind = {
         AssetType.ACAO: 'acoes',
-        AssetType.FII: 'fundos-imobiliarios'
+        AssetType.FII: 'fundos-imobiliarios',
+        AssetType.ETF: 'etfs'
     }[job.type]
     url = f"https://statusinvest.com.br/{kind}/{job.ticker}"
     content = fetch_body(url).decode('utf-8')
