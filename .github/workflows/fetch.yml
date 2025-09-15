@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Puxar o código
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Rodar fetchers
       run: |
         for item in $(find -type f -executable -name fetch); do
