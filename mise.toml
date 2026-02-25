@@ -9,4 +9,4 @@ fmt = "workspaced codebase format"
 install = "python -m pip install --upgrade pip"
 test = "true"
 codegen = "./scripts/codegen.sh"
-ci = { depends = ["lint", "test"] }
+verify = { depends = ["lint", "test"] }
