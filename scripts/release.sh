@@ -2,7 +2,7 @@
 set -x
 
 # This script handles creating a PR or pushing changes if any exist.
-# It expects GITHUB_TOKEN and GITHUB_REF_NAME to be set.
+# It expects GITHUB_TOKEN, GITHUB_REF_NAME, and GITHUB_REPOSITORY to be set.
 
 if [ -n "$(git status --porcelain)" ]; then
     echo "Changes detected."
@@ -28,7 +28,10 @@ if [ -n "$(git status --porcelain)" ]; then
         exit 1
     fi
 
-    if git push origin "$BRANCH_NAME"; then
+    # Use token for authentication in push URL since we removed it from git config
+    REMOTE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+    if git push "$REMOTE_URL" "$BRANCH_NAME"; then
         echo "Push successful."
         if command -v gh &> /dev/null; then
             echo "Attempting to create PR..."

@@ -26,6 +26,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Remove Git Credentials
+        run: |
+          # Remove authorization header to prevent tools from picking it up
+          git config --global --unset-all http.https://github.com/.extraheader || true
+          git config --local --unset-all http.https://github.com/.extraheader || true
+
       - name: Install mise
         run: |
           mkdir -p ~/.local/bin
@@ -34,8 +40,6 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        # Unset GITHUB_TOKEN to absolutely prevent mise from reporting check runs
-        # Unset CI and GITHUB_ACTIONS to hide CI environment from mise
         env:
           GITHUB_TOKEN: ""
           CI: "false"
@@ -45,7 +49,6 @@ jobs:
       - name: Setup Paths
         run: |
           # Add installed tools to PATH manually
-          # Run mise where with blinded env
           PYTHON_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where python)
           echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
 
@@ -63,10 +66,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: ./scripts/release.sh
 
       - name: Lint
-        # Run workspaced directly
         env:
           GITHUB_TOKEN: ""
           CI: "false"
@@ -89,6 +92,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Restore token for gh release? No, gh uses GITHUB_TOKEN env var.
+          # But we might need git config for tagging?
+          # gh release create handles it.
           TAG_NAME=${GITHUB_REF#refs/tags/}
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             TAG_NAME="release-$(date +%Y%m%d%H%M%S)"
