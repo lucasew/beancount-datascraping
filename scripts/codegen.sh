@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -u
 
 # Run all fetch scripts in parallel
 # We ignore errors from individual scripts to ensure the pipeline proceeds.

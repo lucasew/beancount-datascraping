@@ -41,14 +41,24 @@ jobs:
             git commit -m "chore: update data"
 
             BRANCH_NAME="update-data-$(date +%s)"
-            git checkout -b "$BRANCH_NAME"
-            git push origin "$BRANCH_NAME"
+            # Determine the base branch (default to main, fallback to master or current ref)
+            BASE_BRANCH="${{ github.ref_name }}"
+            if [ "$BASE_BRANCH" == "HEAD" ]; then
+               BASE_BRANCH="main"
+            fi
 
-            gh pr create \
-              --title "chore: update data" \
-              --body "Automated data update." \
-              --base "main" \
-              --head "$BRANCH_NAME" || echo "⚠️ Failed to create PR. This might be due to repository settings. Changes are pushed to branch $BRANCH_NAME."
+            git checkout -b "$BRANCH_NAME"
+
+            if git push origin "$BRANCH_NAME"; then
+              gh pr create \
+                --title "chore: update data" \
+                --body "Automated data update." \
+                --base "$BASE_BRANCH" \
+                --head "$BRANCH_NAME" || echo "⚠️ Failed to create PR. Changes are pushed to branch $BRANCH_NAME."
+            else
+               echo "⚠️ Failed to push branch $BRANCH_NAME. Skipping PR creation."
+               exit 1
+            fi
           else
             echo "No changes to commit."
           fi
