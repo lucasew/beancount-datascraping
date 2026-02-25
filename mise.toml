@@ -10,4 +10,3 @@ install = "python -m pip install --upgrade pip"
 test = "true"
 codegen = "./scripts/codegen.sh"
 verify = { depends = ["lint", "test"] }
-ci = "true" # Dummy task to satisfy mise-action if it tries to run ci
