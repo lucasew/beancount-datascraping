@@ -1,0 +1,12 @@
+[tools]
+python = "3.12.2"
+rclone = "1.73.1"
+"github:lucasew/workspaced" = "0.1.5"
+
+[tasks]
+lint = "workspaced codebase lint"
+fmt = "workspaced codebase format"
+install = "python -m pip install --upgrade pip"
+test = "true"
+codegen = "./scripts/codegen.sh"
+verify = { depends = ["lint", "test"] }
