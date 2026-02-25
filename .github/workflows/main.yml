@@ -15,7 +15,7 @@ permissions:
 env:
   MISE_VERBOSE: 1
   MISE_YES: 1
-  # Disable mise GitHub integration to prevent "mise-ci" check run failures
+  # Disable mise GitHub integration
   MISE_GITHUB_ACTION: "0"
 
 jobs:
@@ -36,12 +36,14 @@ jobs:
 
       - name: Install dependencies
         env:
-          GITHUB_TOKEN: "" # Explicitly unset to prevent mise from reporting status
+          GITHUB_TOKEN: ""
+          CI: "false" # Prevent mise from detecting CI and reporting status
         run: mise install
 
       - name: Codegen
         env:
           GITHUB_TOKEN: ""
+          CI: "false"
         run: mise run codegen
 
       - name: Create PR or Push Changes
@@ -53,11 +55,13 @@ jobs:
       - name: Lint
         env:
           GITHUB_TOKEN: ""
+          CI: "false"
         run: mise run lint
 
       - name: Test
         env:
           GITHUB_TOKEN: ""
+          CI: "false"
         run: mise run test
 
       - name: Prepare Artifacts
