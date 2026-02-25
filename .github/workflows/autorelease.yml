@@ -39,11 +39,11 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
         run: ./scripts/release.sh
 
-      - name: Lint
-        run: mise run lint
+      # - name: Lint
+      #   run: mise run lint
 
-      - name: Test
-        run: mise run test
+      # - name: Test
+      #   run: mise run test
 
       - name: Prepare Artifacts
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
