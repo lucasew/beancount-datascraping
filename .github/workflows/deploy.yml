@@ -1,0 +1,104 @@
+name: CI/Release
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  MISE_VERBOSE: 1
+  MISE_YES: 1
+  MISE_GITHUB_ACTION: "0"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install mise
+        run: |
+          mkdir -p ~/.local/bin
+          curl -L https://mise.jdx.dev/mise-latest-linux-x64 > ~/.local/bin/mise
+          chmod +x ~/.local/bin/mise
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        # mise install needs GITHUB_TOKEN to download tools from GitHub Releases to avoid rate limits
+        # We rely on MISE_GITHUB_ACTION=0 to prevent status reporting
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mise install
+
+      - name: Setup Paths
+        run: |
+          # Add installed tools to PATH manually to avoid using 'mise run' or 'mise exec'
+
+          # For python:
+          PYTHON_PATH=$(mise where python)
+          echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
+
+          # For workspaced (github backend):
+          WORKSPACED_PATH=$(mise where "github:lucasew/workspaced")
+          echo "$WORKSPACED_PATH" >> $GITHUB_PATH
+
+          # For rclone:
+          RCLONE_PATH=$(mise where rclone)
+          echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
+          echo "$RCLONE_PATH" >> $GITHUB_PATH
+
+      - name: Codegen
+        run: ./scripts/codegen.sh
+
+      - name: Create PR or Push Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: ./scripts/release.sh
+
+      - name: Lint
+        # Run workspaced directly
+        # Explicitly unset GITHUB_TOKEN to prevent workspaced from reporting check runs
+        env:
+          GITHUB_TOKEN: ""
+          GITHUB_ACTIONS: ""
+        run: workspaced codebase lint
+
+      - name: Test
+        # Run test command directly
+        env:
+          GITHUB_TOKEN: ""
+          GITHUB_ACTIONS: ""
+        run: true
+
+      - name: Prepare Artifacts
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        run: zip -r data.zip bruto
+
+      - name: Release
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG_NAME="release-$(date +%Y%m%d%H%M%S)"
+          fi
+          gh release create "$TAG_NAME" data.zip --generate-notes
+
+      - name: Upload Artifacts to Workflow
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: data
+          path: data.zip
