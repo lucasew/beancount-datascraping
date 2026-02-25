@@ -15,7 +15,6 @@ permissions:
 env:
   MISE_VERBOSE: 1
   MISE_YES: 1
-  # Disable mise GitHub integration
   MISE_GITHUB_ACTION: "0"
 
 jobs:
@@ -37,14 +36,15 @@ jobs:
       - name: Install dependencies
         env:
           GITHUB_TOKEN: ""
-          CI: "false" # Prevent mise from detecting CI and reporting status
+          CI: "false"
         run: mise install
 
       - name: Codegen
         env:
           GITHUB_TOKEN: ""
           CI: "false"
-        run: mise run codegen
+        # Use mise exec to avoid task runner features reporting status
+        run: mise exec -- ./scripts/codegen.sh
 
       - name: Create PR or Push Changes
         env:
@@ -56,13 +56,15 @@ jobs:
         env:
           GITHUB_TOKEN: ""
           CI: "false"
-        run: mise run lint
+        # Manually run workspaced via mise exec
+        run: mise exec -- workspaced codebase lint
 
       - name: Test
         env:
           GITHUB_TOKEN: ""
           CI: "false"
-        run: mise run test
+        # Manually run test command (which is just true for now)
+        run: mise exec -- true
 
       - name: Prepare Artifacts
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
