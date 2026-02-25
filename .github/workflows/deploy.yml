@@ -39,12 +39,25 @@ jobs:
           CI: "false"
         run: mise install
 
+      - name: Setup Paths
+        run: |
+          # Add installed tools to PATH manually to avoid using 'mise run' or 'mise exec'
+          # mise where returns the install path (e.g. ~/.local/share/mise/installs/...)
+          # We expect 'bin' dir inside usually, or just the binary.
+          # For python:
+          PYTHON_PATH=$(mise where python)
+          echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
+          # For workspaced:
+          WORKSPACED_PATH=$(mise where workspaced)
+          echo "$WORKSPACED_PATH" >> $GITHUB_PATH
+          # For rclone:
+          RCLONE_PATH=$(mise where rclone)
+          echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
+          echo "$RCLONE_PATH" >> $GITHUB_PATH
+
       - name: Codegen
-        env:
-          GITHUB_TOKEN: ""
-          CI: "false"
-        # Use mise exec to avoid task runner features reporting status
-        run: mise exec -- ./scripts/codegen.sh
+        # Run script directly, assuming python/rclone are now in PATH
+        run: ./scripts/codegen.sh
 
       - name: Create PR or Push Changes
         env:
@@ -53,18 +66,12 @@ jobs:
         run: ./scripts/release.sh
 
       - name: Lint
-        env:
-          GITHUB_TOKEN: ""
-          CI: "false"
-        # Manually run workspaced via mise exec
-        run: mise exec -- workspaced codebase lint
+        # Run workspaced directly
+        run: workspaced codebase lint
 
       - name: Test
-        env:
-          GITHUB_TOKEN: ""
-          CI: "false"
-        # Manually run test command (which is just true for now)
-        run: mise exec -- true
+        # Run test command directly
+        run: true
 
       - name: Prepare Artifacts
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
