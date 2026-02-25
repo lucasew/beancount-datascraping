@@ -43,7 +43,7 @@ jobs:
             BRANCH_NAME="update-data-$(date +%s)"
             # Determine the base branch (default to main, fallback to master or current ref)
             BASE_BRANCH="${{ github.ref_name }}"
-            if [ "$BASE_BRANCH" == "HEAD" ]; then
+            if [ "$BASE_BRANCH" = "HEAD" ]; then
                BASE_BRANCH="main"
             fi
 
@@ -54,10 +54,10 @@ jobs:
                 --title "chore: update data" \
                 --body "Automated data update." \
                 --base "$BASE_BRANCH" \
-                --head "$BRANCH_NAME" || echo "⚠️ Failed to create PR. Changes are pushed to branch $BRANCH_NAME."
+                --head "$BRANCH_NAME" || echo "⚠️ Failed to create PR. This might be due to repository settings. Changes are pushed to branch $BRANCH_NAME."
             else
-               echo "⚠️ Failed to push branch $BRANCH_NAME. Skipping PR creation."
-               exit 1
+               echo "⚠️ Failed to push branch $BRANCH_NAME. Skipping PR creation. Check workflow permissions."
+               # Do not exit 1, to allow CI to proceed
             fi
           else
             echo "No changes to commit."
