@@ -34,26 +34,26 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: |
-          # Blind mise from GitHub Actions environment to prevent status reporting
-          env -u GITHUB_TOKEN -u GITHUB_ACTIONS -u GITHUB_EVENT_NAME -u GITHUB_REF -u GITHUB_REPOSITORY -u GITHUB_WORKFLOW -u GITHUB_RUN_ID -u GITHUB_RUN_NUMBER -u GITHUB_JOB \
-          mise install
+        # mise install needs GITHUB_TOKEN to download tools from GitHub Releases to avoid rate limits
+        # We rely on MISE_GITHUB_ACTION=0 to prevent status reporting
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mise install
 
       - name: Setup Paths
         run: |
           # Add installed tools to PATH manually to avoid using 'mise run' or 'mise exec'
 
           # For python:
-          # Run mise where with blinded env just in case
-          PYTHON_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where python)
+          PYTHON_PATH=$(mise where python)
           echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
 
-          # For workspaced:
-          WORKSPACED_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where "github:lucasew/workspaced")
+          # For workspaced (github backend):
+          WORKSPACED_PATH=$(mise where "github:lucasew/workspaced")
           echo "$WORKSPACED_PATH" >> $GITHUB_PATH
 
           # For rclone:
-          RCLONE_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where rclone)
+          RCLONE_PATH=$(mise where rclone)
           echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
           echo "$RCLONE_PATH" >> $GITHUB_PATH
 
@@ -68,10 +68,17 @@ jobs:
 
       - name: Lint
         # Run workspaced directly
+        # Explicitly unset GITHUB_TOKEN to prevent workspaced from reporting check runs
+        env:
+          GITHUB_TOKEN: ""
+          GITHUB_ACTIONS: ""
         run: workspaced codebase lint
 
       - name: Test
         # Run test command directly
+        env:
+          GITHUB_TOKEN: ""
+          GITHUB_ACTIONS: ""
         run: true
 
       - name: Prepare Artifacts
