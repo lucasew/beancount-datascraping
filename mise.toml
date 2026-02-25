@@ -1,0 +1,18 @@
+[tools]
+python = "3.12.2"
+rclone = "1.73.1"
+"github:lucasew/workspaced" = "0.1.5"
+
+[settings]
+experimental = false
+github_action = false
+
+[tasks]
+# Dummy tasks to satisfy external mise-ci runner if it exists
+lint = "true"
+fmt = "true"
+install = "true"
+test = "true"
+codegen = "true"
+verify = "true"
+ci = "true"
