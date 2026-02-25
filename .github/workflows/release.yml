@@ -31,16 +31,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Install rclone
-          curl -O https://downloads.rclone.org/v1.73.1/rclone-v1.73.1-linux-amd64.zip
-          unzip rclone-v1.73.1-linux-amd64.zip
+          curl -fL -O https://downloads.rclone.org/v1.73.1/rclone-v1.73.1-linux-amd64.zip
+          unzip -o rclone-v1.73.1-linux-amd64.zip
           sudo cp rclone-v1.73.1-linux-amd64/rclone /usr/local/bin/
 
           # Install workspaced
-          # Assuming github release asset naming
-          curl -L -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64 || \
-          curl -L -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64
+          # Try 0.1.5 first (based on previous logs) then v0.1.5
+          echo "Downloading workspaced..."
+          curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64 || \
+          curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64
+
           chmod +x workspaced
           sudo mv workspaced /usr/local/bin/
+          workspaced --version
 
       - name: Codegen
         run: ./scripts/codegen.sh
@@ -53,7 +56,10 @@ jobs:
         run: ./scripts/release.sh
 
       - name: Lint
-        run: workspaced codebase lint
+        # Unset tokens to avoid status reporting
+        run: |
+          unset GITHUB_TOKEN
+          workspaced codebase lint
 
       - name: Test
         run: true
