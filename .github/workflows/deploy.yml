@@ -34,26 +34,25 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        # mise install needs GITHUB_TOKEN to download tools from GitHub Releases to avoid rate limits
-        # We rely on MISE_GITHUB_ACTION=0 to prevent status reporting
+        # Unset GITHUB_TOKEN to absolutely prevent mise from reporting check runs
+        # Unset CI and GITHUB_ACTIONS to hide CI environment from mise
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ""
+          CI: "false"
+          GITHUB_ACTIONS: ""
         run: mise install
 
       - name: Setup Paths
         run: |
-          # Add installed tools to PATH manually to avoid using 'mise run' or 'mise exec'
-
-          # For python:
-          PYTHON_PATH=$(mise where python)
+          # Add installed tools to PATH manually
+          # Run mise where with blinded env
+          PYTHON_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where python)
           echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
 
-          # For workspaced (github backend):
-          WORKSPACED_PATH=$(mise where "github:lucasew/workspaced")
+          WORKSPACED_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where "github:lucasew/workspaced")
           echo "$WORKSPACED_PATH" >> $GITHUB_PATH
 
-          # For rclone:
-          RCLONE_PATH=$(mise where rclone)
+          RCLONE_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where rclone)
           echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
           echo "$RCLONE_PATH" >> $GITHUB_PATH
 
@@ -68,16 +67,16 @@ jobs:
 
       - name: Lint
         # Run workspaced directly
-        # Explicitly unset GITHUB_TOKEN to prevent workspaced from reporting check runs
         env:
           GITHUB_TOKEN: ""
+          CI: "false"
           GITHUB_ACTIONS: ""
         run: workspaced codebase lint
 
       - name: Test
-        # Run test command directly
         env:
           GITHUB_TOKEN: ""
+          CI: "false"
           GITHUB_ACTIONS: ""
         run: true
 
