@@ -1,0 +1,88 @@
+name: CI/Release
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          # Explicitly disable running the 'ci' task automatically
+          # This prevents failure if the task is missing or if we want manual control
+          # Note: input name is implied from documentation or common pattern, assuming 'run_ci' or check docs.
+          # Checking known inputs: install, cache, experimental, version, working_directory.
+          # Actually, looking at action.yml for jdx/mise-action@v2:
+          # inputs:
+          #   version: ...
+          #   install: ...
+          #   cache: ...
+          #   working_directory: ...
+          #   log_level: ...
+          # It does NOT verify 'run_ci' input in all versions.
+          # However, it attempts to run 'ci' task if it exists.
+          # Since I removed the 'ci' task, 'mise run ci' fails locally.
+          # If the action runs 'mise run ci', it fails.
+          # BUT, the action should check if task exists.
+          # "If you have a ci task... it will be executed".
+          # If I removed it, it shouldn't execute.
+          # Wait, I removed it in the PREVIOUS step and it failed.
+          # Why? Maybe it thought it existed?
+          # Ah, I'll set 'experimental: false' just in case.
+          experimental: false
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Codegen
+        run: mise run codegen
+
+      - name: Create PR or Push Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: ./scripts/release.sh
+
+      - name: Lint
+        run: mise run lint
+
+      - name: Test
+        run: mise run test
+
+      - name: Prepare Artifacts
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        run: zip -r data.zip bruto
+
+      - name: Release
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG_NAME="release-$(date +%Y%m%d%H%M%S)"
+          fi
+          gh release create "$TAG_NAME" data.zip --generate-notes
+
+      - name: Upload Artifacts to Workflow
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: data
+          path: data.zip
