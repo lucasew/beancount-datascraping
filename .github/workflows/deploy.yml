@@ -42,17 +42,21 @@ jobs:
       - name: Setup Paths
         run: |
           # Add installed tools to PATH manually to avoid using 'mise run' or 'mise exec'
-          # mise where returns the install path (e.g. ~/.local/share/mise/installs/...)
-          # We expect 'bin' dir inside usually, or just the binary.
+          # We use the full spec string for github-hosted tools
+
           # For python:
           PYTHON_PATH=$(mise where python)
           echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
-          # For workspaced:
-          WORKSPACED_PATH=$(mise where workspaced)
+
+          # For workspaced (github backend):
+          # mise where needs the full name as defined in mise.toml or installed
+          WORKSPACED_PATH=$(mise where "github:lucasew/workspaced")
           echo "$WORKSPACED_PATH" >> $GITHUB_PATH
+
           # For rclone:
           RCLONE_PATH=$(mise where rclone)
           echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
+          # Some distros put binary in root of package
           echo "$RCLONE_PATH" >> $GITHUB_PATH
 
       - name: Codegen
