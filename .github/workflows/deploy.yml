@@ -34,33 +34,30 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        env:
-          GITHUB_TOKEN: ""
-          CI: "false"
-        run: mise install
+        run: |
+          # Blind mise from GitHub Actions environment to prevent status reporting
+          env -u GITHUB_TOKEN -u GITHUB_ACTIONS -u GITHUB_EVENT_NAME -u GITHUB_REF -u GITHUB_REPOSITORY -u GITHUB_WORKFLOW -u GITHUB_RUN_ID -u GITHUB_RUN_NUMBER -u GITHUB_JOB \
+          mise install
 
       - name: Setup Paths
         run: |
           # Add installed tools to PATH manually to avoid using 'mise run' or 'mise exec'
-          # We use the full spec string for github-hosted tools
 
           # For python:
-          PYTHON_PATH=$(mise where python)
+          # Run mise where with blinded env just in case
+          PYTHON_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where python)
           echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
 
-          # For workspaced (github backend):
-          # mise where needs the full name as defined in mise.toml or installed
-          WORKSPACED_PATH=$(mise where "github:lucasew/workspaced")
+          # For workspaced:
+          WORKSPACED_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where "github:lucasew/workspaced")
           echo "$WORKSPACED_PATH" >> $GITHUB_PATH
 
           # For rclone:
-          RCLONE_PATH=$(mise where rclone)
+          RCLONE_PATH=$(env -u GITHUB_TOKEN -u GITHUB_ACTIONS mise where rclone)
           echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
-          # Some distros put binary in root of package
           echo "$RCLONE_PATH" >> $GITHUB_PATH
 
       - name: Codegen
-        # Run script directly, assuming python/rclone are now in PATH
         run: ./scripts/codegen.sh
 
       - name: Create PR or Push Changes
