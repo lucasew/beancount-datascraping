@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
-set -x
 
 # This script handles creating a PR or pushing changes if any exist.
 # It expects GITHUB_TOKEN, GITHUB_REF_NAME, and GITHUB_REPOSITORY to be set.
-
-# Restore .mise.toml if it was deleted
-if [ ! -f .mise.toml ]; then
-    git checkout .mise.toml || true
-fi
 
 if [ -n "$(git status --porcelain)" ]; then
     echo "Changes detected."
@@ -33,10 +27,9 @@ if [ -n "$(git status --porcelain)" ]; then
         exit 1
     fi
 
-    # Use token for authentication in push URL since we removed it from git config
-    REMOTE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-
-    if git push "$REMOTE_URL" "$BRANCH_NAME"; then
+    # We rely on actions/checkout having configured the token or gh auth being available.
+    # If not, this push will fail. We avoid embedding the token in the URL for security.
+    if git push origin "$BRANCH_NAME"; then
         echo "Push successful."
         if command -v gh &> /dev/null; then
             echo "Attempting to create PR..."

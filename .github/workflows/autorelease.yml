@@ -1,4 +1,4 @@
-name: CI/Release
+name: Autorelease
 
 on:
   push:
@@ -21,37 +21,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Disable Mise Integration
-        run: |
-          # Delete mise.toml to prevent any auto-detection by pre-installed tools
-          rm -f mise.toml
-          rm -f .mise.toml
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Install Mise
+        uses: jdx/mise-action@v2
         with:
-          python-version: '3.12.2'
+          install: false # We run install separately
 
-      - name: Install dependencies (Manual)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Install rclone
-          curl -fL -O https://downloads.rclone.org/v1.73.1/rclone-v1.73.1-linux-amd64.zip
-          unzip -o rclone-v1.73.1-linux-amd64.zip
-          sudo cp rclone-v1.73.1-linux-amd64/rclone /usr/local/bin/
+      - name: Install UBI Plugin
+        run: mise plugin install ubi https://github.com/mise-plugins/mise-ubi.git || true
 
-          # Install workspaced
-          echo "Downloading workspaced..."
-          curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64 || \
-          curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64
-
-          chmod +x workspaced
-          sudo mv workspaced /usr/local/bin/
-          workspaced --version
+      - name: Install
+        run: mise run install
 
       - name: Codegen
-        run: ./scripts/codegen.sh
+        run: mise run codegen
 
       - name: Create PR or Push Changes
         env:
@@ -60,14 +42,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: ./scripts/release.sh
 
-      - name: Lint
-        # Unset tokens to avoid status reporting
-        run: |
-          unset GITHUB_TOKEN
-          workspaced codebase lint
-
-      - name: Test
-        run: true
+      - name: CI (Lint & Test)
+        run: mise run ci
 
       - name: Prepare Artifacts
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
