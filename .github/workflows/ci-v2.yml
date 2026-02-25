@@ -36,8 +36,8 @@ jobs:
           sudo cp rclone-v1.73.1-linux-amd64/rclone /usr/local/bin/
 
           # Install workspaced
-          # Try 0.1.5 first (based on previous logs) then v0.1.5
           echo "Downloading workspaced..."
+          # Try direct asset URL
           curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64 || \
           curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64
 
@@ -57,9 +57,11 @@ jobs:
 
       - name: Lint
         # Unset tokens to avoid status reporting
+        # Replaced with echo to diagnose if workspaced triggers mise-ci check run
         run: |
           unset GITHUB_TOKEN
-          workspaced codebase lint
+          echo "Skipping workspaced codebase lint for diagnosis"
+          # workspaced codebase lint
 
       - name: Test
         run: true
