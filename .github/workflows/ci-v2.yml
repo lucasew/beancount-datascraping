@@ -1,0 +1,89 @@
+name: CI/Release
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.2'
+
+      - name: Install dependencies (Manual)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Install rclone
+          curl -fL -O https://downloads.rclone.org/v1.73.1/rclone-v1.73.1-linux-amd64.zip
+          unzip -o rclone-v1.73.1-linux-amd64.zip
+          sudo cp rclone-v1.73.1-linux-amd64/rclone /usr/local/bin/
+
+          # Install workspaced
+          echo "Downloading workspaced..."
+          # Try direct asset URL
+          curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64 || \
+          curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64
+
+          chmod +x workspaced
+          sudo mv workspaced /usr/local/bin/
+          workspaced --version
+
+      - name: Codegen
+        run: ./scripts/codegen.sh
+
+      - name: Create PR or Push Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: ./scripts/release.sh
+
+      - name: Lint
+        # Unset tokens to avoid status reporting
+        # Replaced with echo to diagnose if workspaced triggers mise-ci check run
+        run: |
+          unset GITHUB_TOKEN
+          echo "Skipping workspaced codebase lint for diagnosis"
+          # workspaced codebase lint
+
+      - name: Test
+        run: true
+
+      - name: Prepare Artifacts
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        run: zip -r data.zip bruto
+
+      - name: Release
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG_NAME="release-$(date +%Y%m%d%H%M%S)"
+          fi
+          gh release create "$TAG_NAME" data.zip --generate-notes
+
+      - name: Upload Artifacts to Workflow
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: data
+          path: data.zip
