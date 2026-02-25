@@ -57,11 +57,9 @@ jobs:
 
       - name: Lint
         # Unset tokens to avoid status reporting
-        # Replaced with echo to diagnose if workspaced triggers mise-ci check run
         run: |
           unset GITHUB_TOKEN
-          echo "Skipping workspaced codebase lint for diagnosis"
-          # workspaced codebase lint
+          workspaced codebase lint
 
       - name: Test
         run: true
