@@ -15,7 +15,7 @@ permissions:
 env:
   MISE_VERBOSE: 1
   MISE_YES: 1
-  MISE_GITHUB_ACTION: "0"
+  MISE_GITHUB_ACTION: "false"
 
 jobs:
   build-and-deploy:
@@ -37,6 +37,11 @@ jobs:
           curl -L https://mise.jdx.dev/mise-latest-linux-x64 > ~/.local/bin/mise
           chmod +x ~/.local/bin/mise
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+          # Create global config to disable GitHub Action integration
+          mkdir -p ~/.config/mise
+          echo '[settings]' > ~/.config/mise/config.toml
+          echo 'github_action = false' >> ~/.config/mise/config.toml
 
       - name: Install dependencies
         run: |
