@@ -4,6 +4,11 @@ set -x
 # This script handles creating a PR or pushing changes if any exist.
 # It expects GITHUB_TOKEN, GITHUB_REF_NAME, and GITHUB_REPOSITORY to be set.
 
+# Restore mise.toml if it was deleted
+if [ ! -f mise.toml ]; then
+    git checkout mise.toml || true
+fi
+
 if [ -n "$(git status --porcelain)" ]; then
     echo "Changes detected."
     git config --global user.name "github-actions[bot]"

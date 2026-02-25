@@ -21,6 +21,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Disable Mise Integration
+        run: |
+          # Delete mise.toml to prevent any auto-detection by pre-installed tools
+          rm -f mise.toml
+          rm -f .mise.toml
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -37,7 +43,6 @@ jobs:
 
           # Install workspaced
           echo "Downloading workspaced..."
-          # Try direct asset URL
           curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64 || \
           curl -fL -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64
 
