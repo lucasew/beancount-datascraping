@@ -13,8 +13,9 @@ permissions:
   pull-requests: write
 
 jobs:
-  release:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,8 +37,11 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
         run: ./scripts/release.sh
 
-      - name: CI
-        run: mise run ci
+      - name: Lint
+        run: mise run lint
+
+      - name: Test
+        run: mise run test
 
       - name: Prepare Artifacts
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
