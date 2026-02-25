@@ -12,11 +12,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  MISE_VERBOSE: 1
-  MISE_YES: 1
-  MISE_GITHUB_ACTION: "false"
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -26,41 +21,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Remove Git Credentials
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.2'
+
+      - name: Install dependencies (Manual)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global --unset-all http.https://github.com/.extraheader || true
-          git config --local --unset-all http.https://github.com/.extraheader || true
+          # Install rclone
+          curl -O https://downloads.rclone.org/v1.73.1/rclone-v1.73.1-linux-amd64.zip
+          unzip rclone-v1.73.1-linux-amd64.zip
+          sudo cp rclone-v1.73.1-linux-amd64/rclone /usr/local/bin/
 
-      - name: Install mise
-        run: |
-          mkdir -p ~/.local/bin
-          curl -L https://mise.jdx.dev/mise-latest-linux-x64 > ~/.local/bin/mise
-          chmod +x ~/.local/bin/mise
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-          # Create global config to disable GitHub Action integration
-          mkdir -p ~/.config/mise
-          echo '[settings]' > ~/.config/mise/config.toml
-          echo 'github_action = false' >> ~/.config/mise/config.toml
-
-      - name: Install dependencies
-        run: |
-          unset GITHUB_TOKEN
-          unset CI
-          unset GITHUB_ACTIONS
-          mise install
-
-      - name: Setup Paths
-        run: |
-          PYTHON_PATH=$(unset GITHUB_TOKEN && unset CI && unset GITHUB_ACTIONS && mise where python)
-          echo "$PYTHON_PATH/bin" >> $GITHUB_PATH
-
-          WORKSPACED_PATH=$(unset GITHUB_TOKEN && unset CI && unset GITHUB_ACTIONS && mise where "github:lucasew/workspaced")
-          echo "$WORKSPACED_PATH" >> $GITHUB_PATH
-
-          RCLONE_PATH=$(unset GITHUB_TOKEN && unset CI && unset GITHUB_ACTIONS && mise where rclone)
-          echo "$RCLONE_PATH/bin" >> $GITHUB_PATH
-          echo "$RCLONE_PATH" >> $GITHUB_PATH
+          # Install workspaced
+          # Assuming github release asset naming
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/v0.1.5/workspaced-linux-amd64 || \
+          curl -L -H "Authorization: token $GITHUB_TOKEN" -o workspaced https://github.com/lucasew/workspaced/releases/download/0.1.5/workspaced-linux-amd64
+          chmod +x workspaced
+          sudo mv workspaced /usr/local/bin/
 
       - name: Codegen
         run: ./scripts/codegen.sh
@@ -73,11 +53,7 @@ jobs:
         run: ./scripts/release.sh
 
       - name: Lint
-        run: |
-          unset GITHUB_TOKEN
-          unset CI
-          unset GITHUB_ACTIONS
-          workspaced codebase lint
+        run: workspaced codebase lint
 
       - name: Test
         run: true
