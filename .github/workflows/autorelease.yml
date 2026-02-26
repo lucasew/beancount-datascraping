@@ -26,9 +26,6 @@ jobs:
         with:
           install: false # We run install separately
 
-      - name: Install UBI Plugin
-        run: mise plugin install ubi https://github.com/mise-plugins/mise-ubi.git || true
-
       - name: Install
         run: mise run install
 
