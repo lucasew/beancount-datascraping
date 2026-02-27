@@ -1,0 +1,24 @@
+[tools]
+python = "3.12.2"
+rclone = "1.73.1"
+# ubi:lucasew/workspaced removed to avoid plugin installation issues in CI
+
+[env]
+PATH = "./bin:$PATH"
+
+[tasks]
+install = { depends = ["install:*"], description = "Install dependencies" }
+"install:setup-tools" = { run = "./scripts/install_tools.sh", description = "Install tooling binaries" }
+"install:mise-tools" = { run = "mise install", description = "Install mise tools (python)" }
+
+lint = { run = "workspaced codebase lint", description = "Lint codebase" }
+fmt = { run = "workspaced codebase format", description = "Format codebase" }
+test = { run = "echo 'No tests found'", description = "Run tests" }
+codegen = { run = "./scripts/codegen.sh", description = "Update generated code" }
+ci = { depends = ["lint", "test"], description = "Run CI pipeline" }
+verify = { depends = ["ci"], description = "Verify pipeline" }
+
+[settings]
+env_file = ".env"
+experimental = true
+env_shell_expand = true
