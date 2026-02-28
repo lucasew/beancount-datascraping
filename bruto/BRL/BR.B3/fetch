@@ -23,6 +23,10 @@ USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/1
 
 @functools.cache
 def fetch_body(url: str, fetch_try=0):
+    """
+    Downloads raw payload from an endpoint and caches it via functools.
+    Utilizes a hardcoded browser User-Agent to mitigate 403 blocks from CDNs.
+    """
     logger.debug(f"fetch: {url}")
     res = urlopen(Request(url, headers={
       "User-Agent": USER_AGENT,
@@ -30,6 +34,9 @@ def fetch_body(url: str, fetch_try=0):
     return res.read()
 
 def fetch_json(url: str):
+    """
+    Loads cached bytes returned by fetch_body and parses them into a Python dict.
+    """
     return json.loads(fetch_body(url))
 
 fetchers = {}
@@ -39,6 +46,10 @@ def fetcher(fn):
 
 @dataclass
 class AssetType(Enum):
+    """
+    Distinguishes the major classes of B3 assets. Used as the underlying file name
+    and heavily influences how scrapers construct their target URLs.
+    """
     ACAO = "acoes"
     FII = "fii"
     ETF = "etfs"
@@ -48,6 +59,10 @@ class AssetType(Enum):
 
 @dataclass
 class Entry():
+    """
+    Encapsulates a parsed daily price metric. Serves as the canonical data
+    structure emitted by any downstream scraping task.
+    """
     day: date
     price: float
 
@@ -61,6 +76,11 @@ class Entry():
 
 @dataclass
 class Job():
+    """
+    Holds execution context for a single scrape. Defines what ticker to hit,
+    what asset type it is, and via which scraping logic. Exposes the proper
+    CSV persistence path based on this tuple of properties.
+    """
     ticker: str
     type: AssetType
     source: str
@@ -73,6 +93,10 @@ class Job():
 
 @dataclass
 class Result():
+    """
+    The wrapper yielded by `handle_job` after execution attempts finish.
+    A `None` entry indicates scraping fell through or an exception occurred.
+    """
     entry: Optional[Entry]
     job: Job
 
@@ -83,6 +107,12 @@ def none(job: Job):
 
 @fetcher
 def statusinvest(job: Job):
+    """
+    Scrapes StatusInvest's HTML page for the given ticker. Resolves the correct
+    sub-path ('acoes', 'fundos-imobiliarios', etc.) based on the Job's AssetType.
+    Uses regex to extract the "Valor atual" field since they don't expose a clean API.
+    Transforms comma-separated prices to float-compatible dots.
+    """
     kind = {
         AssetType.ACAO: 'acoes',
         AssetType.FII: 'fundos-imobiliarios',
@@ -97,6 +127,11 @@ def statusinvest(job: Job):
     return Result(job=job, entry=None)
 
 def handle_job(job: Job):
+    """
+    Dispatches the job to its configured extractor function. Acts as a safety net
+    inside the ThreadPoolExecutor, suppressing individual job crashes so the
+    rest of the pool can continue unabated.
+    """
     try:
         return fetchers[job.source](job)
     except Exception as e:
@@ -104,6 +139,11 @@ def handle_job(job: Job):
         return Result(job=job, entry=None)
 
 def get_jobs():
+    """
+    Bootstraps the processing queue by iterating over `.txt` manifest files.
+    Each file indicates an asset category (e.g. `acoes.txt`).
+    Pairs every valid ticker with every available fetching source.
+    """
     for item in CURRENT_DIR.glob('*.txt'):
         asset_type = AssetType(item.stem)
         for ticker in item.open('r'):
