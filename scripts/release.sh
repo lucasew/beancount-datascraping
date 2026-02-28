@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 # This script handles creating a PR or pushing changes if any exist.
 # It expects GITHUB_TOKEN, GITHUB_REF_NAME, and GITHUB_REPOSITORY to be set.
@@ -29,28 +30,20 @@ if [ -n "$(git status --porcelain)" ]; then
 
     # We rely on actions/checkout having configured the token or gh auth being available.
     # If not, this push will fail. We avoid embedding the token in the URL for security.
-    if git push origin "$BRANCH_NAME"; then
-        echo "Push successful."
-        if command -v gh &> /dev/null; then
-            echo "Attempting to create PR..."
-            # Capture output and exit code
-            if OUTPUT=$(gh pr create \
-                --title "chore: update data" \
-                --body "Automated data update." \
-                --base "$BASE_BRANCH" \
-                --head "$BRANCH_NAME" 2>&1); then
-                echo "PR created successfully: $OUTPUT"
-            else
-                echo "⚠️ Failed to create PR. Changes are pushed to branch $BRANCH_NAME."
-                echo "Error details: $OUTPUT"
-                # Do not exit 1, allowing the pipeline to continue
-            fi
-        else
-            echo "gh command not found. Skipping PR creation."
-        fi
+    git push origin "$BRANCH_NAME"
+    echo "Push successful."
+    if command -v gh &> /dev/null; then
+        echo "Attempting to create PR..."
+        # Capture output and exit code
+        OUTPUT=$(gh pr create \
+            --title "chore: update data" \
+            --body "Automated data update." \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH_NAME" 2>&1)
+        echo "PR created successfully: $OUTPUT"
     else
-        echo "⚠️ Failed to push branch $BRANCH_NAME. Check workflow permissions."
-        # Do not exit 1, allowing the pipeline to continue
+        echo "gh command not found. Skipping PR creation."
+        exit 1
     fi
 else
     echo "No changes to commit."

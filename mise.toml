@@ -1,19 +1,20 @@
 [tools]
 python = "3.12.2"
 rclone = "1.73.1"
-"ubi:lucasew/workspaced" = "0.1.5"
-
-[plugins]
-ubi = "https://github.com/mise-plugins/mise-ubi.git"
+"github:lucasew/workspaced" = "0.1.5"
 
 [tasks]
 install = { depends = ["install:*"], description = "Install dependencies" }
-"install:plugins" = { run = "mise plugin install ubi https://github.com/mise-plugins/mise-ubi.git || true", description = "Install ubi plugin" }
 "install:tools" = { run = "mise install", description = "Install mise tools" }
 
 lint = { run = "workspaced codebase lint", description = "Lint codebase" }
 fmt = { run = "workspaced codebase format", description = "Format codebase" }
-test = { run = "echo 'No tests found'", description = "Run tests" }
-codegen = { run = "./scripts/codegen.sh", description = "Update generated code" }
+
+test = { depends = ["test:*"], description = "Run tests" }
+"test:dummy" = { run = "echo 'No tests found'", description = "Dummy test" }
+
+codegen = { depends = ["codegen:*"], description = "Update generated code" }
+"codegen:run" = { run = "./scripts/codegen.sh", description = "Run codegen script" }
+
 ci = { depends = ["lint", "test"], description = "Run CI pipeline" }
 verify = { depends = ["ci"], description = "Verify pipeline" }
