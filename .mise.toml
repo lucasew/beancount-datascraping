@@ -1,0 +1,13 @@
+[tools]
+python = "3.12.2"
+rclone = "1.73.1"
+"github:lucasew/workspaced" = "0.1.5"
+
+[tasks]
+install = { run = "mise install", description = "Install dependencies" }
+lint = { run = "workspaced codebase lint", description = "Lint codebase" }
+fmt = { run = "workspaced codebase format", description = "Format codebase" }
+test = { run = "echo 'No tests found'", description = "Run tests" }
+codegen = { run = "./scripts/codegen.sh", description = "Update generated code" }
+ci = { depends = ["lint", "test"], description = "Run CI pipeline" }
+verify = { depends = ["ci"], description = "Verify pipeline" }
