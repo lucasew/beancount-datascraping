@@ -23,6 +23,11 @@ USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/1
 
 @functools.cache
 def fetch_body(url: str, fetch_try=0):
+    """
+    Fetches raw body content from a URL, spoofing a standard browser user agent
+    to avoid basic bot protections. Caches results in memory to prevent duplicate
+    network requests for the same URL during a single script execution.
+    """
     logger.debug(f"fetch: {url}")
     res = urlopen(Request(url, headers={
       "User-Agent": USER_AGENT,
@@ -30,6 +35,10 @@ def fetch_body(url: str, fetch_try=0):
     return res.read()
 
 def fetch_json(url: str):
+    """
+    Wraps fetch_body to directly decode the fetched payload as JSON.
+    Benefits from the underlying memory cache in fetch_body.
+    """
     return json.loads(fetch_body(url))
 
 fetchers = {}
@@ -39,6 +48,10 @@ def fetcher(fn):
 
 @dataclass
 class AssetType(Enum):
+    """
+    Defines the supported financial asset categories. Used to differentiate
+    asset lists (e.g., from 'etf.txt') and dictate fetching logic if needed.
+    """
     ETF = "etf"
 
     def __hash__(self):
@@ -46,6 +59,10 @@ class AssetType(Enum):
 
 @dataclass
 class Entry():
+    """
+    Represents a single scraped data point for a ticker. Designed
+    to map easily to a CSV row format representing time series data.
+    """
     day: date
     price: float
 
@@ -59,6 +76,11 @@ class Entry():
 
 @dataclass
 class Job():
+    """
+    Encapsulates the context needed to process an individual asset,
+    including the ticker symbol, its asset type, and the target fetching source.
+    Generates the correct output file path dynamically based on these parameters.
+    """
     ticker: str
     type: AssetType
     source: str
@@ -71,6 +93,10 @@ class Job():
 
 @dataclass
 class Result():
+    """
+    Binds the outcome of a scraping job to its original request.
+    If `entry` is None, the job failed or yielded no data.
+    """
     entry: Optional[Entry]
     job: Job
 
@@ -81,6 +107,10 @@ def none(job: Job):
 
 @fetcher
 def etfdotcom(job: Job):
+    """
+    Data extractor targeting ETF.com. Calls their internal v2 delayed quotes API.
+    Assumes the API returns a list and parses out the 'Last' traded price.
+    """
     url = f"https://api-prod.etf.com//v2/quotes/delayedquotes?tickers={job.ticker}"
     content = fetch_json(url)
     for item in content:
@@ -89,6 +119,11 @@ def etfdotcom(job: Job):
 
 
 def handle_job(job: Job):
+    """
+    Worker function executed inside the thread pool. Looks up the registered
+    fetcher function by name and invokes it. Catches all exceptions to prevent
+    a single failed scrape from crashing the entire batch process.
+    """
     try:
         return fetchers[job.source](job)
     except Exception as e:
@@ -96,6 +131,12 @@ def handle_job(job: Job):
         return Result(job=job, entry=None)
 
 def get_jobs():
+    """
+    Generator that orchestrates job creation by scanning directory conventions.
+    Reads flat .txt files in the current dir (e.g. 'etf.txt'). The file stem
+    dictates the asset type. Emits a scrape job for every combination of
+    discovered ticker and registered fetcher.
+    """
     for item in CURRENT_DIR.glob('*.txt'):
         asset_type = AssetType(item.stem)
         for ticker in item.open('r'):
