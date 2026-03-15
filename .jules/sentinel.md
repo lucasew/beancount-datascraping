@@ -1,0 +1,1 @@
+- 2026-03-15: [Medium] Ignored/swallowed errors via non-centralized logger calls in catch blocks.
