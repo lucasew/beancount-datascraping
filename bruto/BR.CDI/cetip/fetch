@@ -20,6 +20,7 @@ args = parser.parse_args()
 RCLONE_BIN = which("rclone")
 assert RCLONE_BIN is not None, "rclone não instalado" # TODO: baixar o binário na hora
 
+# SECURITY-NOTE: Intentional dummy password for anonymous FTP.
 # gerado com `rclone obscure dummy`
 RCLONE_DUMMY_ENCODED_PASSWORD = "RhNsirK9BpdNF7jZBMv0eumRZhZU"
 
