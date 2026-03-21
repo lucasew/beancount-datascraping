@@ -1,0 +1,1 @@
+- 2024-03-21: [Critical] Look for intentional dummy passwords used in rclone configurations and ensure they are annotated.
